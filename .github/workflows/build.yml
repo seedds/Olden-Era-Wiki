@@ -20,7 +20,7 @@ jobs:
       tag: ${{ steps.bump.outputs.tag }}
       name: ${{ steps.bump.outputs.name }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 0 # need full history for tag listing
 
@@ -43,7 +43,7 @@ jobs:
   build-android:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - uses: subosito/flutter-action@v2
         with:
@@ -75,7 +75,7 @@ jobs:
   build-ios:
     runs-on: macos-14 # Apple Silicon — faster than Intel runners
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - uses: subosito/flutter-action@v2
         with:
@@ -106,7 +106,7 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - uses: actions/download-artifact@v4
         with:
