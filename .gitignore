@@ -1,3 +1,6 @@
+# Local tool config
+.claude/
+
 # Miscellaneous
 *.log
 *.pyc
