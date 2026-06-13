@@ -8,13 +8,13 @@ Olden Era Wiki gives you instant access to detailed information about every aspe
 
 ## Screenshots
 
-<p align="center">
-  <img src="screenshots/01_home.png" width="200" alt="Home">
-  <img src="screenshots/02_units_list.png" width="200" alt="Units">
-  <img src="screenshots/03_unit_detail.png" width="200" alt="Unit Detail">
-  <img src="screenshots/04_heroes_list.png" width="200" alt="Heroes">
-  <img src="screenshots/05_search.png" width="200" alt="Search">
-</p>
+<table align="center"><tr>
+  <td><img src="screenshots/01_home.png" width="150" alt="Home"></td>
+  <td><img src="screenshots/02_units_list.png" width="150" alt="Units"></td>
+  <td><img src="screenshots/03_unit_detail.png" width="150" alt="Unit Detail"></td>
+  <td><img src="screenshots/04_heroes_list.png" width="150" alt="Heroes"></td>
+  <td><img src="screenshots/05_search.png" width="150" alt="Search"></td>
+</tr></table>
 
 ## Features
 
