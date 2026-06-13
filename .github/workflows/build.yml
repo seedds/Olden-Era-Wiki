@@ -11,6 +11,7 @@ concurrency:
 
 env:
   FLUTTER_VERSION: '3.44.2'
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
   # ── Determine the next version number ──────────────────────────────────
