@@ -64,13 +64,16 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
-      - name: Build APK
-        run: flutter build apk --release
+      - name: Build APK (arm64)
+        run: flutter build apk --release --target-platform android-arm64
+
+      - name: Rename APK
+        run: mv build/app/outputs/flutter-apk/app-release.apk build/app/outputs/flutter-apk/OldenEraWiki-android.apk
 
       - uses: actions/upload-artifact@v4
         with:
           name: apk
-          path: build/app/outputs/flutter-apk/app-release.apk
+          path: build/app/outputs/flutter-apk/OldenEraWiki-android.apk
 
   # ── iOS (unsigned) ─────────────────────────────────────────────────────
   build-ios:
@@ -126,5 +129,5 @@ jobs:
           name: ${{ needs.version.outputs.name }}
           generate_release_notes: true
           files: |
-            artifacts/app-release.apk
+            artifacts/OldenEraWiki-android.apk
             artifacts/OldenEraWiki-ios-unsigned.zip
