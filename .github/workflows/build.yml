@@ -111,6 +111,29 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0 # need history for changelog
+
+      - name: Build changelog
+        id: changelog
+        run: |
+          # Find the previous release tag.
+          prev=$(git tag --list 'v[0-9]*' --sort=-version:refname | head -n1)
+          if [ -z "$prev" ]; then
+            # First release — list all commits.
+            log=$(git log --pretty=format:'- %s' --reverse)
+          else
+            log=$(git log "${prev}..HEAD" --pretty=format:'- %s' --reverse)
+          fi
+          # Write multi-line output.
+          {
+            echo "body<<CHANGELOG_EOF"
+            echo "## What's Changed"
+            echo ""
+            echo "$log"
+            echo ""
+            echo "CHANGELOG_EOF"
+          } >> "$GITHUB_OUTPUT"
 
       - uses: actions/download-artifact@v4
         with:
@@ -127,7 +150,7 @@ jobs:
         with:
           tag_name: ${{ needs.version.outputs.tag }}
           name: ${{ needs.version.outputs.name }}
-          generate_release_notes: true
+          body: ${{ steps.changelog.outputs.body }}
           files: |
             artifacts/OldenEraWiki-android.apk
             artifacts/OldenEraWiki-ios-unsigned.zip
