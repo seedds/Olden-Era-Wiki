@@ -6,6 +6,16 @@ Unofficial companion wiki for *Heroes of Might and Magic: Olden Era*. A free, fu
 
 Olden Era Wiki gives you instant access to detailed information about every aspect of the game. All data is bundled locally — no internet connection required. The app is completely free with no ads or in-app purchases.
 
+## Screenshots
+
+<p align="center">
+  <img src="screenshots/01_home.png" width="200" alt="Home">
+  <img src="screenshots/02_units_list.png" width="200" alt="Units">
+  <img src="screenshots/03_unit_detail.png" width="200" alt="Unit Detail">
+  <img src="screenshots/04_heroes_list.png" width="200" alt="Heroes">
+  <img src="screenshots/05_search.png" width="200" alt="Search">
+</p>
+
 ## Features
 
 **Browse 10 categories of game content:**
