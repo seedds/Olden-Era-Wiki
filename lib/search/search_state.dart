@@ -167,4 +167,9 @@ class SearchScope extends InheritedNotifier<SearchState> {
 
   static SearchState of(BuildContext context) =>
       context.dependOnInheritedWidgetOfExactType<SearchScope>()!.notifier!;
+
+  /// Like [of] but does NOT subscribe the caller to rebuilds. Use when you
+  /// only need the notifier to hand to a [ListenableBuilder].
+  static SearchState notifierOf(BuildContext context) =>
+      context.getInheritedWidgetOfExactType<SearchScope>()!.notifier!;
 }

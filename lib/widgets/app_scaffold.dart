@@ -90,53 +90,64 @@ class _AppScaffoldState extends State<AppScaffold> with RouteAware {
 
   @override
   Widget build(BuildContext context) {
-    final search = SearchScope.of(context);
+    // Non-reactive handle: only the overlay + PopScope below need to rebuild
+    // on search changes, so the nav bar must not subscribe to SearchState.
+    final searchState = SearchScope.notifierOf(context);
 
-    return PopScope(
-      // System back (Android) dismisses the search overlay before popping.
-      canPop: !search.isShowingResults,
-      onPopInvokedWithResult: (didPop, result) {
-        if (!didPop) search.dismissOverlay();
-      },
-      child: CupertinoPageScaffold(
-        backgroundColor: AppTheme.background(context),
-        navigationBar: CupertinoNavigationBar(
-          backgroundColor: AppTheme.background(context),
-          middle: Text(widget.title),
-          trailing: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ...widget.trailingExtras,
-              _NavBarButton(
-                icon: CupertinoIcons.house_fill,
-                onTap: () => goHome(context),
-              ),
-              _NavBarButton(
-                icon: CupertinoIcons.gear,
-                onTap: () => pushSettings(context),
-              ),
-            ],
+    // Built once here, outside the ListenableBuilder, so the nav bar (and its
+    // Home/Settings buttons) is not rebuilt on every search/navigation notify.
+    final navigationBar = CupertinoNavigationBar(
+      backgroundColor: AppTheme.background(context),
+      middle: Text(widget.title),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          ...widget.trailingExtras,
+          _NavBarButton(
+            icon: CupertinoIcons.house_fill,
+            onTap: () => goHome(context),
           ),
-        ),
-        child: SafeArea(
-          bottom: false,
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              widget.child,
-              AnimatedSwitcher(
-                duration: const Duration(milliseconds: 180),
-                child: _showsOverlay(search)
-                    ? SearchOverlay(
-                        results: search.results,
-                        prioritizedEntityType: search.searchPriority,
-                      )
-                    : const SizedBox.shrink(),
-              ),
-            ],
+          _NavBarButton(
+            icon: CupertinoIcons.gear,
+            onTap: () => pushSettings(context),
           ),
-        ),
+        ],
       ),
+    );
+
+    return ListenableBuilder(
+      listenable: searchState,
+      builder: (context, _) {
+        return PopScope(
+          // System back (Android) dismisses the search overlay before popping.
+          canPop: !searchState.isShowingResults,
+          onPopInvokedWithResult: (didPop, result) {
+            if (!didPop) searchState.dismissOverlay();
+          },
+          child: CupertinoPageScaffold(
+            backgroundColor: AppTheme.background(context),
+            navigationBar: navigationBar,
+            child: SafeArea(
+              bottom: false,
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  widget.child,
+                  AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 180),
+                    child: _showsOverlay(searchState)
+                        ? SearchOverlay(
+                            results: searchState.results,
+                            prioritizedEntityType: searchState.searchPriority,
+                          )
+                        : const SizedBox.shrink(),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 }
