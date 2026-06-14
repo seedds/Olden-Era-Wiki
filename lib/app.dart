@@ -119,32 +119,34 @@ class _PersistentSearchShellState extends State<_PersistentSearchShell> {
     final mq = MediaQuery.of(context);
     final keyboardHeight = mq.viewInsets.bottom;
 
-    // Wrap the entire Column in bottom padding equal to the keyboard height so
-    // the search bar slides up above the keyboard. The inner navigator content
-    // gets a MediaQuery with viewInsets.bottom zeroed out so that
-    // CupertinoPageScaffold doesn't also try to resize for the keyboard
-    // (which would cause double-shrinking).
-    return Padding(
-      padding: EdgeInsets.only(bottom: keyboardHeight),
-      child: MediaQuery(
-        data: mq.copyWith(viewInsets: mq.viewInsets.copyWith(bottom: 0)),
-        child: Column(
-          children: [
-            // Navigator content. Tapping here dismisses the keyboard.
-            Expanded(
-              child: GestureDetector(
-                behavior: HitTestBehavior.translucent,
-                onTap: () => _searchFocusNode.unfocus(),
-                child: widget.child,
-              ),
+    // Only the search bar rides above the keyboard; the navigator content
+    // (and its nav bars) must stay put so opening a screen while the keyboard
+    // is up doesn't cause a layout shift when the keyboard later collapses.
+    // The inner MediaQuery zeroes viewInsets.bottom so CupertinoPageScaffold
+    // doesn't also try to resize for the keyboard (which would cause
+    // double-shrinking).
+    return MediaQuery(
+      data: mq.copyWith(viewInsets: mq.viewInsets.copyWith(bottom: 0)),
+      child: Column(
+        children: [
+          // Navigator content. Tapping here dismisses the keyboard.
+          Expanded(
+            child: GestureDetector(
+              behavior: HitTestBehavior.translucent,
+              onTap: () => _searchFocusNode.unfocus(),
+              child: widget.child,
             ),
-            // Persistent search bar at the bottom.
-            _SearchBar(
+          ),
+          // Persistent search bar at the bottom, padded up by the keyboard
+          // height so it slides above the keyboard.
+          Padding(
+            padding: EdgeInsets.only(bottom: keyboardHeight),
+            child: _SearchBar(
               controller: search.controller,
               focusNode: _searchFocusNode,
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
