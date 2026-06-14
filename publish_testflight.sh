@@ -12,6 +12,11 @@ DEVELOPER_DIR="${DEVELOPER_DIR:-/Applications/Xcode.app/Contents/Developer}"
 APP_VERSION="${1:-}"
 BUILD_NUMBER="${BUILD_NUMBER:-$(date +%Y%m%d%H%M)}"
 TEAM_ID="${TEAM_ID:-9LK4YZ82JR}"
+# App Store Connect API key for the upload step. The .p8 file lives in a
+# standard altool location (e.g. ~/private_keys/AuthKey_<KEYID>.p8) and is
+# discovered automatically by key ID.
+ASC_KEY_ID="${ASC_KEY_ID:-2NSNUQ93S3}"
+ASC_ISSUER_ID="${ASC_ISSUER_ID:-52948c26-8a96-4637-8cf2-a94362bce846}"
 ARTIFACT_ROOT="${ARTIFACT_ROOT:-$SCRIPT_DIR/build/testflight/$BUILD_NUMBER}"
 EXPORT_OPTIONS_PLIST="$ARTIFACT_ROOT/ExportOptions.plist"
 SYSTEM_TOOL_PATH="/usr/bin:/bin:/usr/sbin:/sbin"
@@ -89,7 +94,7 @@ cat > "$EXPORT_OPTIONS_PLIST" <<EOF
 <plist version="1.0">
 <dict>
 	<key>destination</key>
-	<string>upload</string>
+	<string>export</string>
 	<key>manageAppVersionAndBuildNumber</key>
 	<false/>
 	<key>method</key>
@@ -110,8 +115,9 @@ printf 'Version: %s\n' "$APP_VERSION"
 printf 'Build: %s\n' "$BUILD_NUMBER"
 printf 'Artifacts: %s\n' "$ARTIFACT_ROOT"
 
-# flutter build ipa archives, signs, and (with destination=upload in the
-# export options) uploads to App Store Connect via xcodebuild -exportArchive.
+# flutter build ipa archives, signs, and (with destination=export in the
+# export options) writes a distribution-signed .ipa to build/ios/ipa/. The
+# upload happens as a separate altool step below.
 # Force Apple's rsync during IPA packaging. Homebrew rsync breaks exportArchive.
 PATH="$SYSTEM_TOOL_PATH:$PATH" DEVELOPER_DIR="$DEVELOPER_DIR" flutter build ipa \
   --release \
@@ -119,5 +125,19 @@ PATH="$SYSTEM_TOOL_PATH:$PATH" DEVELOPER_DIR="$DEVELOPER_DIR" flutter build ipa 
   --build-number "$BUILD_NUMBER" \
   --export-options-plist "$EXPORT_OPTIONS_PLIST"
 
+IPA_PATH="$(ls "$SCRIPT_DIR/build/ios/ipa/"*.ipa 2>/dev/null | head -n1)"
+if [ -z "$IPA_PATH" ]; then
+  printf 'No IPA found in build/ios/ipa/ — export failed\n' >&2
+  exit 1
+fi
+
+printf 'Uploading %s to App Store Connect\n' "$IPA_PATH"
+PATH="$SYSTEM_TOOL_PATH:$PATH" DEVELOPER_DIR="$DEVELOPER_DIR" \
+  xcrun altool --upload-app \
+    --type ios \
+    --file "$IPA_PATH" \
+    --apiKey "$ASC_KEY_ID" \
+    --apiIssuer "$ASC_ISSUER_ID"
+
 printf 'Upload finished\n'
-printf 'Build output: %s\n' "$SCRIPT_DIR/build/ios/ipa"
+printf 'Build output: %s\n' "$IPA_PATH"
