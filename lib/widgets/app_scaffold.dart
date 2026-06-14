@@ -1,10 +1,10 @@
 import 'package:flutter/cupertino.dart';
 
 import '../data/models/search.dart';
-import '../routes.dart';
 import '../search/search_results_view.dart';
 import '../search/search_state.dart';
 import '../theme/app_theme.dart';
+import 'nav_bar_state.dart';
 
 /// [RouteObserver] used by [AppScaffold] to detect when a screen becomes
 /// visible again after a pop, so it can restore its [searchPriority].
@@ -51,6 +51,19 @@ class _AppScaffoldState extends State<AppScaffold> with RouteAware {
       appScaffoldRouteObserver.subscribe(this, route);
     }
     _updateSearchPriority();
+    _publishNavBar();
+  }
+
+  @override
+  void didUpdateWidget(AppScaffold oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Dynamic titles (e.g. detail screens that load their name asynchronously)
+    // change widget.title after the first build; republish so the persistent
+    // bar reflects the new title.
+    if (oldWidget.title != widget.title ||
+        !identical(oldWidget.trailingExtras, widget.trailingExtras)) {
+      _publishNavBar();
+    }
   }
 
   @override
@@ -60,9 +73,34 @@ class _AppScaffoldState extends State<AppScaffold> with RouteAware {
   }
 
   @override
+  void didPush() {
+    // This screen's route finished pushing and is now the top route.
+    _publishNavBar();
+  }
+
+  @override
   void didPopNext() {
-    // This screen became visible again after a pop — restore its priority.
+    // This screen became visible again after a pop — restore its priority
+    // and republish its nav bar contents to the persistent bar.
     _updateSearchPriority();
+    _publishNavBar();
+  }
+
+  /// Publishes this screen's title/trailing/canPop to the persistent nav bar.
+  /// Only the currently-visible (current) route should drive the bar.
+  void _publishNavBar() {
+    // Defer to post-frame to avoid mutating shared state during build.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final route = ModalRoute.of(context);
+      if (route == null || !route.isCurrent) return;
+      // No-op when there's no persistent nav bar (e.g. isolated tests).
+      NavBarScope.maybeNotifierOf(context)?.publish(
+        title: widget.title,
+        trailingExtras: widget.trailingExtras,
+        canPop: Navigator.of(context).canPop(),
+      );
+    });
   }
 
   /// Whether this screen draws the search results overlay. Besides the
@@ -90,30 +128,13 @@ class _AppScaffoldState extends State<AppScaffold> with RouteAware {
 
   @override
   Widget build(BuildContext context) {
+    // The navigation bar is no longer per-screen; it's a single persistent bar
+    // in the app shell (PersistentNavBar) that this screen feeds via
+    // _publishNavBar. This widget renders only the body + search overlay.
+    //
     // Non-reactive handle: only the overlay + PopScope below need to rebuild
-    // on search changes, so the nav bar must not subscribe to SearchState.
+    // on search changes.
     final searchState = SearchScope.notifierOf(context);
-
-    // Built once here, outside the ListenableBuilder, so the nav bar (and its
-    // Home/Settings buttons) is not rebuilt on every search/navigation notify.
-    final navigationBar = CupertinoNavigationBar(
-      backgroundColor: AppTheme.background(context),
-      middle: Text(widget.title),
-      trailing: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          ...widget.trailingExtras,
-          _NavBarButton(
-            icon: CupertinoIcons.house_fill,
-            onTap: () => goHome(context),
-          ),
-          _NavBarButton(
-            icon: CupertinoIcons.gear,
-            onTap: () => pushSettings(context),
-          ),
-        ],
-      ),
-    );
 
     return ListenableBuilder(
       listenable: searchState,
@@ -126,13 +147,20 @@ class _AppScaffoldState extends State<AppScaffold> with RouteAware {
           },
           child: CupertinoPageScaffold(
             backgroundColor: AppTheme.background(context),
-            navigationBar: navigationBar,
             child: SafeArea(
               bottom: false,
               child: Stack(
                 fit: StackFit.expand,
                 children: [
-                  widget.child,
+                  // Reserve space for the persistent search bar pinned at the
+                  // bottom of the shell so screen content isn't hidden behind
+                  // it. The shell encodes the bar height in padding.bottom.
+                  Padding(
+                    padding: EdgeInsets.only(
+                      bottom: MediaQuery.paddingOf(context).bottom,
+                    ),
+                    child: widget.child,
+                  ),
                   AnimatedSwitcher(
                     duration: const Duration(milliseconds: 180),
                     child: _showsOverlay(searchState)
@@ -153,26 +181,11 @@ class _AppScaffoldState extends State<AppScaffold> with RouteAware {
 }
 
 /// Clears search state and pops to the home screen (port of goHome()).
+/// Uses the root navigator key fallback so it works from the persistent
+/// nav bar context (which sits above the app's Navigator).
 void goHome(BuildContext context) {
-  SearchScope.of(context).clear();
-  Navigator.of(context).popUntil((route) => route.isFirst);
-}
-
-class _NavBarButton extends StatelessWidget {
-  const _NavBarButton({required this.icon, required this.onTap});
-
-  final IconData icon;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-        child: Icon(icon, size: 22, color: AppTheme.accent),
-      ),
-    );
-  }
+  final search = SearchScope.of(context);
+  search.clear();
+  final nav = Navigator.maybeOf(context) ?? search.navigatorKey?.currentState;
+  nav?.popUntil((route) => route.isFirst);
 }

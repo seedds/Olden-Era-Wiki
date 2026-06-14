@@ -26,7 +26,12 @@ class SearchOverlay extends StatelessWidget {
       height: double.infinity,
       color: AppTheme.background(context).withValues(alpha: 0.97),
       child: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
+        padding: EdgeInsets.fromLTRB(
+          16,
+          16,
+          16,
+          16 + MediaQuery.paddingOf(context).bottom,
+        ),
         child: results.isEmpty
             ? const SizedBox.shrink()
             : GlobalSearchResultsView(

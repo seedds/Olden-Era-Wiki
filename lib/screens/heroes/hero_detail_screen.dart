@@ -344,21 +344,35 @@ class _StatsSection extends StatelessWidget {
         DetailCard(
           child: Column(
             children: [
-              _StatPairRow(
-                left: (StatIcons.attack, 'Offence', stats.offenceText),
-                right: (StatIcons.defense, 'Defence', stats.defenceText),
+              _InfoRow(
+                iconPath: StatIcons.attack,
+                label: 'Offence',
+                value: stats.offenceText,
               ),
-              _StatPairRow(
-                left: (StatIcons.energy, 'Spell Power', stats.spellPowerText),
-                right: (
-                  StatIcons.experience,
-                  'Intelligence',
-                  stats.intelligenceText
-                ),
+              _InfoRow(
+                iconPath: StatIcons.defense,
+                label: 'Defence',
+                value: stats.defenceText,
               ),
-              _StatPairRow(
-                left: (StatIcons.luck, 'Luck', stats.luckText),
-                right: (StatIcons.morale, 'Morale', stats.moraleText),
+              _InfoRow(
+                iconPath: StatIcons.energy,
+                label: 'Spell Power',
+                value: stats.spellPowerText,
+              ),
+              _InfoRow(
+                iconPath: StatIcons.experience,
+                label: 'Intelligence',
+                value: stats.intelligenceText,
+              ),
+              _InfoRow(
+                iconPath: StatIcons.luck,
+                label: 'Luck',
+                value: stats.luckText,
+              ),
+              _InfoRow(
+                iconPath: StatIcons.morale,
+                label: 'Morale',
+                value: stats.moraleText,
               ),
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 8),
@@ -638,51 +652,6 @@ class _InfoRow extends StatelessWidget {
           ),
         ],
       ),
-    );
-  }
-}
-
-class _StatPairRow extends StatelessWidget {
-  const _StatPairRow({required this.left, required this.right});
-
-  final (String?, String, String) left;
-  final (String?, String, String) right;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 5),
-      child: Row(
-        children: [
-          Expanded(child: _statCell(context, left)),
-          const SizedBox(width: 16),
-          Expanded(child: _statCell(context, right)),
-        ],
-      ),
-    );
-  }
-
-  Widget _statCell(BuildContext context, (String?, String, String) stat) {
-    final (icon, name, value) = stat;
-    return Row(
-      children: [
-        LocalImage(icon, size: 22),
-        const SizedBox(width: 8),
-        Text(
-          name,
-          style:
-              TextStyle(fontSize: 15, color: AppTheme.textSecondary(context)),
-        ),
-        const Spacer(),
-        Text(
-          value,
-          style: TextStyle(
-            fontSize: 15,
-            fontWeight: FontWeight.w600,
-            color: AppTheme.statValue(context),
-          ),
-        ),
-      ],
     );
   }
 }

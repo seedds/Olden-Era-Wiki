@@ -1,10 +1,12 @@
 import 'package:flutter/cupertino.dart';
 
+import 'routes.dart';
 import 'screens/home_screen.dart';
 import 'search/search_state.dart';
 import 'settings/app_settings.dart';
 import 'theme/app_theme.dart';
 import 'widgets/app_scaffold.dart';
+import 'widgets/nav_bar_state.dart';
 
 /// Port of OldenEraWikiApp / RootAppView (App.swift).
 class OldenEraWikiApp extends StatefulWidget {
@@ -19,6 +21,7 @@ class OldenEraWikiApp extends StatefulWidget {
 class _OldenEraWikiAppState extends State<OldenEraWikiApp> {
   final GlobalKey<NavigatorState> _navigatorKey = GlobalKey<NavigatorState>();
   final SearchState _search = SearchState();
+  final NavBarState _navBar = NavBarState();
   late final SearchNavigatorObserver _observer = SearchNavigatorObserver(_search);
 
   @override
@@ -30,6 +33,7 @@ class _OldenEraWikiAppState extends State<OldenEraWikiApp> {
   @override
   void dispose() {
     _search.dispose();
+    _navBar.dispose();
     super.dispose();
   }
 
@@ -39,7 +43,9 @@ class _OldenEraWikiAppState extends State<OldenEraWikiApp> {
       settings: widget.settings,
       child: SearchScope(
         search: _search,
-        child: ListenableBuilder(
+        child: NavBarScope(
+          navBar: _navBar,
+          child: ListenableBuilder(
           listenable: widget.settings,
           builder: (context, _) {
             return CupertinoApp(
@@ -67,12 +73,16 @@ class _OldenEraWikiAppState extends State<OldenEraWikiApp> {
                     textScaler: TextScaler.linear(
                         widget.settings.fontSize.scaleFactor),
                   ),
-                  child: _PersistentSearchShell(child: child!),
+                  child: _PersistentSearchShell(
+                    navigatorKey: _navigatorKey,
+                    child: child!,
+                  ),
                 );
               },
               home: const HomeScreen(),
             );
           },
+          ),
         ),
       ),
     );
@@ -82,9 +92,13 @@ class _OldenEraWikiAppState extends State<OldenEraWikiApp> {
 /// Persistent shell that renders the search bar at the bottom of the screen.
 /// The [child] is the navigator content from [CupertinoApp].
 class _PersistentSearchShell extends StatefulWidget {
-  const _PersistentSearchShell({required this.child});
+  const _PersistentSearchShell({
+    required this.child,
+    required this.navigatorKey,
+  });
 
   final Widget child;
+  final GlobalKey<NavigatorState> navigatorKey;
 
   @override
   State<_PersistentSearchShell> createState() => _PersistentSearchShellState();
@@ -122,46 +136,128 @@ class _PersistentSearchShellState extends State<_PersistentSearchShell> {
     // Matches the _OverlayWrapper SizedBox height of the search bar content.
     const searchBarHeight = 46.0;
 
-    // The Navigator fills the whole screen (Positioned.fill) so each route's
-    // MediaQuery.padding.top is the real, stable status-bar inset on every
-    // frame — including mid push/pop transition. Putting the Navigator in a
-    // Column previously let padding.top be re-resolved during transitions,
-    // which made the nav bar (and its buttons) jump vertically.
+    // The navigation bar is a single persistent row at the top of the shell,
+    // OUTSIDE the Navigator. It owns the status-bar top inset; the Navigator
+    // below gets padding.top zeroed. Because the bar is not part of any route,
+    // it never slides, rebuilds, or flashes during push/pop — only the page
+    // content underneath transitions. Screens publish their title/trailing to
+    // NavBarState via AppScaffold.
     //
     // For the Navigator subtree we:
-    //  - zero viewInsets.bottom so CupertinoPageScaffold doesn't resize for
-    //    the keyboard, and
-    //  - add bottom padding equal to the floating search bar height so screen
-    //    content reserves space and doesn't scroll under the bar.
-    return Stack(
+    //  - zero padding.top (the persistent bar already consumed it),
+    //  - zero viewInsets.bottom so scaffolds don't resize for the keyboard,
+    //  - add bottom padding equal to the search bar height so content reserves
+    //    space and doesn't scroll under the bar.
+    return Column(
       children: [
-        Positioned.fill(
-          child: MediaQuery(
-            data: mq.copyWith(
-              viewInsets: mq.viewInsets.copyWith(bottom: 0),
-              padding: mq.padding.copyWith(
-                bottom: mq.padding.bottom + searchBarHeight,
+        PersistentNavBar(navigatorKey: widget.navigatorKey),
+        Expanded(
+          child: Stack(
+            children: [
+              Positioned.fill(
+                child: MediaQuery(
+                  data: mq.copyWith(
+                    padding: mq.padding.copyWith(
+                      top: 0,
+                      bottom: mq.padding.bottom + searchBarHeight,
+                    ),
+                    viewInsets: mq.viewInsets.copyWith(bottom: 0),
+                  ),
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.translucent,
+                    onTap: () => _searchFocusNode.unfocus(),
+                    child: widget.child,
+                  ),
+                ),
               ),
-            ),
-            child: GestureDetector(
-              behavior: HitTestBehavior.translucent,
-              onTap: () => _searchFocusNode.unfocus(),
-              child: widget.child,
-            ),
-          ),
-        ),
-        // Persistent search bar pinned to the bottom, rising above the
-        // keyboard when it is present.
-        Positioned(
-          left: 0,
-          right: 0,
-          bottom: keyboardHeight,
-          child: _SearchBar(
-            controller: search.controller,
-            focusNode: _searchFocusNode,
+              // Persistent search bar pinned to the bottom, rising above the
+              // keyboard when it is present.
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: keyboardHeight,
+                child: _SearchBar(
+                  controller: search.controller,
+                  focusNode: _searchFocusNode,
+                ),
+              ),
+            ],
           ),
         ),
       ],
+    );
+  }
+}
+
+/// The single persistent navigation bar, rendered once at the top of the
+/// shell above the Navigator. Its container and the Home/Settings buttons are
+/// built once and never rebuild on navigation; only the leading back button,
+/// title, and trailing extras swap instantly via [NavBarState].
+class PersistentNavBar extends StatelessWidget {
+  const PersistentNavBar({super.key, required this.navigatorKey});
+
+  final GlobalKey<NavigatorState> navigatorKey;
+
+  static const double _toolbarHeight = 44;
+
+  @override
+  Widget build(BuildContext context) {
+    // TEMP DIAGNOSTIC: confirm this builds once, not on navigation.
+    debugPrint('[PERSISTENT NAVBAR BUILD]');
+
+    final topInset = MediaQuery.paddingOf(context).top;
+
+    // Home + Settings buttons: built once, never rebuilt by the inner
+    // ListenableBuilder below.
+    final homeButton = NavBarButton(
+      icon: CupertinoIcons.house_fill,
+      onTap: () => goHome(context),
+    );
+    final settingsButton = NavBarButton(
+      icon: CupertinoIcons.gear,
+      onTap: () => pushSettings(context),
+    );
+
+    // Non-subscribing read so PersistentNavBar.build itself is NOT rebuilt
+    // when NavBarState notifies; only the inner ListenableBuilder reruns.
+    // The shell always provides a NavBarScope ancestor.
+    final navBar = NavBarScope.maybeNotifierOf(context)!;
+
+    return Container(
+      color: AppTheme.background(context),
+      padding: EdgeInsets.only(top: topInset),
+      child: SizedBox(
+        height: _toolbarHeight,
+        child: ListenableBuilder(
+          listenable: navBar,
+          builder: (context, _) {
+            return NavigationToolbar(
+              leading: navBar.canPop
+                  ? CupertinoNavigationBarBackButton(
+                      color: AppTheme.accent,
+                      onPressed: () => navigatorKey.currentState?.maybePop(),
+                    )
+                  : null,
+              middle: Text(
+                navBar.title,
+                style: CupertinoTheme.of(context)
+                    .textTheme
+                    .navTitleTextStyle,
+                overflow: TextOverflow.ellipsis,
+              ),
+              trailing: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  ...navBar.trailingExtras,
+                  homeButton,
+                  settingsButton,
+                ],
+              ),
+              middleSpacing: 6,
+            );
+          },
+        ),
+      ),
     );
   }
 }

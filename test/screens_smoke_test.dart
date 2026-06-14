@@ -41,6 +41,7 @@ import 'package:olden_era_wiki/screens/units/units_list_screen.dart';
 import 'package:olden_era_wiki/search/search_results_view.dart';
 import 'package:olden_era_wiki/search/search_state.dart';
 import 'package:olden_era_wiki/settings/app_settings.dart';
+import 'package:olden_era_wiki/widgets/nav_bar_state.dart';
 import 'package:olden_era_wiki/widgets/stat_icons.dart';
 
 void main() {
@@ -58,12 +59,17 @@ void main() {
   Future<void> pumpScreen(WidgetTester tester, Widget screen) async {
     final search = SearchState();
     addTearDown(search.dispose);
+    final navBar = NavBarState();
+    addTearDown(navBar.dispose);
     await tester.pumpWidget(
       AppSettingsScope(
         settings: settings,
         child: SearchScope(
           search: search,
-          child: CupertinoApp(home: screen),
+          child: NavBarScope(
+            navBar: navBar,
+            child: CupertinoApp(home: screen),
+          ),
         ),
       ),
     );
