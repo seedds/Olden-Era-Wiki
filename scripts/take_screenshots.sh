@@ -5,10 +5,14 @@
 # Boots an iOS simulator, runs the integration test, and saves screenshots
 # to the screenshots/ directory at the project root.
 #
+# Captured screenshots are resized to 1284 × 2778 px (App Store Connect 6.7"
+# portrait), padded with black bars to preserve aspect ratio.
+#
 # Usage:
 #   ./scripts/take_screenshots.sh                     # uses default device
 #   ./scripts/take_screenshots.sh "iPhone 17 Pro"     # pick a specific sim
 #   ./scripts/take_screenshots.sh --skip-build         # skip flutter pub get
+#   ./scripts/take_screenshots.sh --no-resize          # keep raw captures
 #
 set -euo pipefail
 
@@ -17,11 +21,18 @@ PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 DEVICE_NAME="iPhone 17 Pro"
 SKIP_BUILD=false
+RESIZE=true
+
+# App Store Connect 6.7" portrait dimensions.
+TARGET_W=1284
+TARGET_H=2778
+PAD_COLOR=000000
 
 # ── Parse arguments ──────────────────────────────────────────────────────
 for arg in "$@"; do
   case "$arg" in
     --skip-build) SKIP_BUILD=true ;;
+    --no-resize) RESIZE=false ;;
     *) DEVICE_NAME="$arg" ;;
   esac
 done
@@ -77,6 +88,36 @@ flutter drive \
   --driver=test_driver/integration_test.dart \
   --target=integration_test/screenshot_test.dart \
   -d "$DEVICE_ID"
+
+# ── Resize to App Store dimensions ───────────────────────────────────────
+if [ "$RESIZE" = true ]; then
+  echo ""
+  echo "Resizing screenshots to ${TARGET_W}x${TARGET_H} (padded) ..."
+
+  shopt -s nullglob
+  pngs=("$PROJECT_DIR/screenshots/"*.png)
+  shopt -u nullglob
+
+  if [ ${#pngs[@]} -eq 0 ]; then
+    echo "  (no screenshots found — the test may have failed)"
+    exit 1
+  fi
+
+  for f in "${pngs[@]}"; do
+    # Fit within the target bounds without distortion, then pad (centered) to
+    # the exact canvas size with a black background.
+    sips --resampleHeightWidthMax "$TARGET_H" "$f" >/dev/null
+    sips -p "$TARGET_H" "$TARGET_W" --padColor "$PAD_COLOR" "$f" >/dev/null
+
+    w=$(sips -g pixelWidth "$f" | awk '/pixelWidth/ {print $2}')
+    h=$(sips -g pixelHeight "$f" | awk '/pixelHeight/ {print $2}')
+    if [ "$w" != "$TARGET_W" ] || [ "$h" != "$TARGET_H" ]; then
+      echo "Error: $f is ${w}x${h}, expected ${TARGET_W}x${TARGET_H}." >&2
+      exit 1
+    fi
+    echo "  $(basename "$f"): ${w}x${h}"
+  done
+fi
 
 # ── Summary ──────────────────────────────────────────────────────────────
 echo ""
