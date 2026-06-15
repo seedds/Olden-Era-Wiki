@@ -221,16 +221,24 @@ extension HeroesQueries on WikiDatabase {
     return [for (final row in rows) HeroListItem.fromRow(row)];
   }
 
-  List<HeroListItem> fetchStartingHeroesForSpell(String spellID) {
+  Map<int, List<HeroListItem>> fetchStartingHeroesByLevelForSpell(
+      String spellID) {
     final rows = db.select('''
-        SELECT DISTINCT h.id, h.name, h.portrait_path, h.faction_id, h.class_type, h.start_level
+        SELECT DISTINCT h.id, h.name, h.portrait_path, h.faction_id, h.class_type, h.start_level,
+               CAST(json_extract(s.value, '\$.level') AS INTEGER) AS spell_level
         FROM heroes h, json_each(h.raw_json, '\$.startMagics') s
         WHERE json_extract(s.value, '\$.sidConfig') = ?
           AND json_extract(s.value, '\$.isLearned') = 1
           AND h.id NOT LIKE 'campaign_%'
           AND h.id NOT LIKE 'tutorial_%'
-        ORDER BY h.name
+        ORDER BY spell_level, h.name
         ''', [spellID]);
-    return [for (final row in rows) HeroListItem.fromRow(row)];
+
+    final heroesByLevel = <int, List<HeroListItem>>{};
+    for (final row in rows) {
+      final level = math.max((row['spell_level'] as int?) ?? 1, 1);
+      heroesByLevel.putIfAbsent(level, () => []).add(HeroListItem.fromRow(row));
+    }
+    return heroesByLevel;
   }
 }

@@ -25,7 +25,7 @@ class SpellDetailScreen extends StatefulWidget {
 
 class _SpellDetailScreenState extends State<SpellDetailScreen> {
   SpellDetail? _spell;
-  List<HeroListItem> _startingHeroes = [];
+  Map<int, List<HeroListItem>> _startingHeroesByLevel = {};
   bool _isLoading = true;
 
   @override
@@ -34,7 +34,8 @@ class _SpellDetailScreenState extends State<SpellDetailScreen> {
     try {
       final db = WikiDatabase.instance;
       _spell = db.fetchSpellDetail(widget.spellID);
-      _startingHeroes = db.fetchStartingHeroesForSpell(widget.spellID);
+      _startingHeroesByLevel =
+          db.fetchStartingHeroesByLevelForSpell(widget.spellID);
     } catch (error) {
       debugPrint('Error loading spell detail: $error');
     }
@@ -58,11 +59,11 @@ class _SpellDetailScreenState extends State<SpellDetailScreen> {
                       _HeaderSection(spell: spell),
                       for (final level in spell.levels) ...[
                         const SizedBox(height: 20),
-                        _LevelSection(level: level),
-                      ],
-                      if (_startingHeroes.isNotEmpty) ...[
-                        const SizedBox(height: 20),
-                        _StartingHeroesSection(heroes: _startingHeroes),
+                        _LevelSection(
+                          level: level,
+                          heroes:
+                              _startingHeroesByLevel[level.level] ?? const [],
+                        ),
                       ],
                     ],
                   ),
@@ -126,9 +127,10 @@ class _HeaderSection extends StatelessWidget {
 
 /// Port of SpellLevelSection (SpellDetailView.swift).
 class _LevelSection extends StatelessWidget {
-  const _LevelSection({required this.level});
+  const _LevelSection({required this.level, required this.heroes});
 
   final SpellLevelDetail level;
+  final List<HeroListItem> heroes;
 
   @override
   Widget build(BuildContext context) {
@@ -165,30 +167,24 @@ class _LevelSection extends StatelessWidget {
                 const SizedBox(height: 12),
               if (description != null && description.isNotEmpty)
                 HighlightedDescriptionText(description, fontSize: 17),
+              if (heroes.isNotEmpty) ...[
+                const SizedBox(height: 16),
+                Text(
+                  'Heroes starting with this spell',
+                  style: TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w600,
+                    color: AppTheme.textPrimary(context),
+                  ),
+                ),
+              ],
+              for (final hero in heroes) ...[
+                const SizedBox(height: 12),
+                HeroRow(hero: hero),
+              ],
             ],
           ),
         ),
-      ],
-    );
-  }
-}
-
-class _StartingHeroesSection extends StatelessWidget {
-  const _StartingHeroesSection({required this.heroes});
-
-  final List<HeroListItem> heroes;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const SectionHeader(title: 'Heroes starting with this spell'),
-        const SizedBox(height: 12),
-        for (final hero in heroes) ...[
-          HeroRow(hero: hero),
-          const SizedBox(height: 10),
-        ],
       ],
     );
   }
