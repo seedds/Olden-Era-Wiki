@@ -99,15 +99,17 @@ jobs:
       - name: Build iOS (unsigned)
         run: flutter build ios --release --no-codesign
 
-      - name: Archive .app to zip
+      - name: Package unsigned .ipa
         run: |
           cd build/ios/iphoneos
-          zip -r ../../../OldenEraWiki-${{ needs.version.outputs.name }}-ios-unsigned.zip Runner.app
+          mkdir Payload
+          mv Runner.app Payload/
+          zip -r ../../../OldenEraWiki-${{ needs.version.outputs.name }}-ios-unsigned.ipa Payload
 
       - uses: actions/upload-artifact@v4
         with:
           name: ios
-          path: OldenEraWiki-${{ needs.version.outputs.name }}-ios-unsigned.zip
+          path: OldenEraWiki-${{ needs.version.outputs.name }}-ios-unsigned.ipa
 
   # ── Create GitHub Release ──────────────────────────────────────────────
   release:
@@ -159,4 +161,4 @@ jobs:
           body: ${{ steps.changelog.outputs.body }}
           files: |
             artifacts/OldenEraWiki-*-android.apk
-            artifacts/OldenEraWiki-*-ios-unsigned.zip
+            artifacts/OldenEraWiki-*-ios-unsigned.ipa
