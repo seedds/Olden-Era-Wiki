@@ -220,4 +220,17 @@ extension HeroesQueries on WikiDatabase {
         ''', [skillID]);
     return [for (final row in rows) HeroListItem.fromRow(row)];
   }
+
+  List<HeroListItem> fetchStartingHeroesForSpell(String spellID) {
+    final rows = db.select('''
+        SELECT DISTINCT h.id, h.name, h.portrait_path, h.faction_id, h.class_type, h.start_level
+        FROM heroes h, json_each(h.raw_json, '\$.startMagics') s
+        WHERE json_extract(s.value, '\$.sidConfig') = ?
+          AND json_extract(s.value, '\$.isLearned') = 1
+          AND h.id NOT LIKE 'campaign_%'
+          AND h.id NOT LIKE 'tutorial_%'
+        ORDER BY h.name
+        ''', [spellID]);
+    return [for (final row in rows) HeroListItem.fromRow(row)];
+  }
 }

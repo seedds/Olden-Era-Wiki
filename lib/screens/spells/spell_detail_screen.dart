@@ -1,12 +1,15 @@
 import 'package:flutter/cupertino.dart';
 
 import '../../data/database.dart';
+import '../../data/models/hero.dart';
 import '../../data/models/search.dart';
 import '../../data/models/spell.dart';
+import '../../data/queries/heroes_queries.dart';
 import '../../data/queries/spells_queries.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/app_scaffold.dart';
 import '../../widgets/detail_widgets.dart';
+import '../../widgets/hero_row.dart';
 import '../../widgets/highlighted_text.dart';
 import '../../widgets/local_image.dart';
 
@@ -22,13 +25,16 @@ class SpellDetailScreen extends StatefulWidget {
 
 class _SpellDetailScreenState extends State<SpellDetailScreen> {
   SpellDetail? _spell;
+  List<HeroListItem> _startingHeroes = [];
   bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
     try {
-      _spell = WikiDatabase.instance.fetchSpellDetail(widget.spellID);
+      final db = WikiDatabase.instance;
+      _spell = db.fetchSpellDetail(widget.spellID);
+      _startingHeroes = db.fetchStartingHeroesForSpell(widget.spellID);
     } catch (error) {
       debugPrint('Error loading spell detail: $error');
     }
@@ -53,6 +59,10 @@ class _SpellDetailScreenState extends State<SpellDetailScreen> {
                       for (final level in spell.levels) ...[
                         const SizedBox(height: 20),
                         _LevelSection(level: level),
+                      ],
+                      if (_startingHeroes.isNotEmpty) ...[
+                        const SizedBox(height: 20),
+                        _StartingHeroesSection(heroes: _startingHeroes),
                       ],
                     ],
                   ),
@@ -158,6 +168,27 @@ class _LevelSection extends StatelessWidget {
             ],
           ),
         ),
+      ],
+    );
+  }
+}
+
+class _StartingHeroesSection extends StatelessWidget {
+  const _StartingHeroesSection({required this.heroes});
+
+  final List<HeroListItem> heroes;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SectionHeader(title: 'Heroes starting with this spell'),
+        const SizedBox(height: 12),
+        for (final hero in heroes) ...[
+          HeroRow(hero: hero),
+          const SizedBox(height: 10),
+        ],
       ],
     );
   }
