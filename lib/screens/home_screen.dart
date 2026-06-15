@@ -1,6 +1,5 @@
 import 'package:flutter/cupertino.dart';
 
-import '../data/database.dart';
 import '../data/models/search.dart';
 import '../screens/abilities/abilities_list_screen.dart';
 import '../screens/artifacts/artifacts_list_screen.dart';
@@ -54,25 +53,8 @@ enum HomeSection {
 }
 
 /// Port of HomeView.swift.
-class HomeScreen extends StatefulWidget {
+class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
-
-  @override
-  State<HomeScreen> createState() => _HomeScreenState();
-}
-
-class _HomeScreenState extends State<HomeScreen> {
-  String? _gameVersion;
-
-  @override
-  void initState() {
-    super.initState();
-    try {
-      _gameVersion = WikiDatabase.instance.fetchGameVersion();
-    } catch (error) {
-      debugPrint('Error loading game version: $error');
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -83,16 +65,6 @@ class _HomeScreenState extends State<HomeScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            if (_gameVersion != null) ...[
-              Text(
-                'Game version $_gameVersion',
-                style: TextStyle(
-                  fontSize: 15,
-                  color: AppTheme.textSecondary(context),
-                ),
-              ),
-              const SizedBox(height: 6),
-            ],
             for (final section in HomeSection.values) ...[
               _HomeSectionRow(section: section),
               const SizedBox(height: 6),

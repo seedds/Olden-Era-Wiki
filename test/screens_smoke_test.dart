@@ -90,7 +90,6 @@ void main() {
     await pumpScreen(tester, const HomeScreen());
     expect(find.text('Units'), findsOneWidget);
     expect(find.text('Objects'), findsOneWidget);
-    expect(find.textContaining('Game version'), findsOneWidget);
   });
 
   testWidgets('settings screen (no IAP, no theme option)', (tester) async {
@@ -99,6 +98,7 @@ void main() {
     expect(find.text('Font Size'), findsOneWidget);
     expect(find.textContaining('Unlock'), findsNothing);
     expect(find.textContaining('Purchase'), findsNothing);
+    expect(find.textContaining('Game version'), findsOneWidget);
   });
 
   testWidgets('units list + detail', (tester) async {
@@ -167,6 +167,23 @@ void main() {
     await pumpScreen(
         tester, MapObjectDetailScreen(objectID: objects.first.id));
     expect(find.text('Object Info'), findsOneWidget);
+  });
+
+  testWidgets('tapping the search button focuses the field without a second tap',
+      (tester) async {
+    // Regression: the search field is a single persistent CupertinoTextField
+    // (never swapped during the expand animation), so a single tap must leave
+    // it focused and ready for input immediately.
+    await tester.pumpWidget(OldenEraWikiApp(settings: settings));
+    await tester.pump();
+
+    await tester.tap(find.byIcon(CupertinoIcons.search).first);
+    await tester.pumpAndSettle();
+
+    // The visible search field is focused — not just any shared node state.
+    final editable = tester.widget<EditableText>(find.byType(EditableText));
+    expect(editable.focusNode.hasFocus, isTrue);
+    expect(FocusManager.instance.primaryFocus, editable.focusNode);
   });
 
   testWidgets('search overlay appears with results and restores state',

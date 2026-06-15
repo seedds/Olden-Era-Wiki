@@ -25,7 +25,7 @@ class SearchOverlay extends StatelessWidget {
     return Container(
       width: double.infinity,
       height: double.infinity,
-      color: AppTheme.background(context).withValues(alpha: 0.97),
+      color: AppTheme.background(context).withValues(alpha: 0.9),
       child: SingleChildScrollView(
         padding: EdgeInsets.fromLTRB(
           16,
