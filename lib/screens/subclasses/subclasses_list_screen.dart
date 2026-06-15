@@ -64,7 +64,7 @@ class _SubclassesListScreenState extends State<SubclassesListScreen> {
         ),
       ],
       child: ListView.builder(
-        padding: const EdgeInsets.fromLTRB(12, 8, 12, 24),
+        padding: EdgeInsets.fromLTRB(12, 8, 12, context.scrollBottomInset(extra: 24)),
         itemCount: subclasses.length,
         itemBuilder: (context, index) => Padding(
           padding: const EdgeInsets.only(bottom: 8),

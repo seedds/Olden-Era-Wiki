@@ -37,7 +37,7 @@ class _FactionLawsListScreenState extends State<FactionLawsListScreen> {
       title: 'Laws',
       searchPriority: SearchEntityType.factionLaws,
       child: ListView.builder(
-        padding: const EdgeInsets.fromLTRB(12, 8, 12, 24),
+        padding: EdgeInsets.fromLTRB(12, 8, 12, context.scrollBottomInset(extra: 24)),
         itemCount: _laws.length,
         itemBuilder: (context, index) => Padding(
           padding: const EdgeInsets.only(bottom: 2),

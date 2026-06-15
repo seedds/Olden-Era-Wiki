@@ -82,7 +82,7 @@ void main() {
     await tester.pumpAndSettle();
 
     await tester.enterText(
-      find.byType(CupertinoSearchTextField),
+      find.byType(EditableText),
       'fire',
     );
     // Wait for the debounce (150 ms) + results to build.

@@ -42,6 +42,7 @@ import 'package:olden_era_wiki/search/search_results_view.dart';
 import 'package:olden_era_wiki/search/search_state.dart';
 import 'package:olden_era_wiki/settings/app_settings.dart';
 import 'package:olden_era_wiki/widgets/nav_bar_state.dart';
+import 'package:olden_era_wiki/widgets/tab_nav_state.dart';
 import 'package:olden_era_wiki/widgets/stat_icons.dart';
 
 void main() {
@@ -176,7 +177,13 @@ void main() {
     final search =
         SearchScope.of(tester.element(find.byType(HomeScreen)));
 
-    await tester.enterText(find.byType(CupertinoSearchTextField), 'fire');
+    // The bottom bar starts with a collapsed search pill (a circle button).
+    // Tap the magnifying-glass icon to expand the morphing search field, then
+    // let the spring/keyboard settle so the EditableText is present.
+    await tester.tap(find.byIcon(CupertinoIcons.search).first);
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byType(EditableText), 'fire');
     // Before the debounce fires the overlay shows nothing — no "No results
     // found." flash, no spinner.
     await tester.pump();
@@ -196,7 +203,7 @@ void main() {
     await tester.tap(find.text(search.results.first.title).first);
     await tester.pumpAndSettle();
     expect(search.isOverlayPresented, isFalse);
-    expect(search.restoreDepth, 0);
+    expect(search.restoreDepthFor(AppTab.home), 0);
     expect(find.byType(SearchOverlay), findsNothing);
     expect(find.byType(SearchOverlay, skipOffstage: false), findsOneWidget);
 
@@ -204,22 +211,87 @@ void main() {
     await tester.pageBack();
     await tester.pumpAndSettle();
     expect(search.isOverlayPresented, isTrue);
-    expect(search.restoreDepth, isNull);
+    expect(search.restoreDepthFor(AppTab.home), isNull);
     expect(find.byType(SearchOverlay), findsOneWidget);
 
     // A query that matches nothing shows an empty box — no "No results
     // found." text.
-    await tester.enterText(find.byType(CupertinoSearchTextField), 'zzzzqqq');
+    await tester.enterText(find.byType(EditableText), 'zzzzqqq');
     await tester.pump(const Duration(milliseconds: 300));
     await tester.pump();
     expect(search.results, isEmpty);
     expect(find.text('No results found.'), findsNothing);
 
     // Clearing the text dismisses the overlay.
-    await tester.enterText(find.byType(CupertinoSearchTextField), '');
+    await tester.enterText(find.byType(EditableText), '');
     await tester.pump(const Duration(milliseconds: 300));
     expect(search.isShowingResults, isFalse);
     await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('search restores after opening a result from the Settings tab',
+      (tester) async {
+    await tester.pumpWidget(OldenEraWikiApp(settings: settings));
+    await tester.pump();
+    final search =
+        SearchScope.of(tester.element(find.byType(HomeScreen)));
+
+    // Switch to the Settings tab via the bottom bar.
+    await tester.tap(find.text('Settings').first);
+    await tester.pumpAndSettle();
+    expect(find.byType(SettingsScreen), findsOneWidget);
+
+    // Activating search is always a Home-context action: tapping the search
+    // circle switches back to the Home tab before expanding the field.
+    await tester.tap(find.byIcon(CupertinoIcons.search).first);
+    await tester.pumpAndSettle();
+    expect(find.byType(HomeScreen), findsOneWidget);
+
+    await tester.enterText(find.byType(EditableText), 'fire');
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.pump();
+    expect(search.isShowingResults, isTrue);
+    expect(find.byType(SearchOverlay), findsOneWidget);
+
+    // Open a result — it pushes a detail page on the Home tab's stack, since
+    // search always operates on Home.
+    await tester.tap(find.text(search.results.first.title).first);
+    await tester.pumpAndSettle();
+    expect(search.isOverlayPresented, isFalse);
+    expect(search.restoreDepthFor(AppTab.home), 0);
+    // The Settings tab must NOT have recorded a restore point.
+    expect(search.restoreDepthFor(AppTab.settings), isNull);
+    expect(find.byType(SearchOverlay), findsNothing);
+
+    // The top-bar back button pops to root and re-presents the overlay
+    // (without clearing the query).
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+    expect(search.isOverlayPresented, isTrue);
+    expect(search.restoreDepthFor(AppTab.home), isNull);
+    expect(find.byType(SearchOverlay), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('re-tapping active Settings tab pops its stack to root',
+      (tester) async {
+    await tester.pumpWidget(OldenEraWikiApp(settings: settings));
+    await tester.pumpAndSettle();
+
+    // Settings tab → push the Font Size sub-screen.
+    await tester.tap(find.text('Settings').first);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Font Size'));
+    await tester.pumpAndSettle();
+    expect(find.text('Font Size'), findsWidgets);
+    expect(find.text('Report bug'), findsNothing);
+
+    // Re-tapping the active Settings tab pops back to the Settings root.
+    await tester.tap(find.byIcon(CupertinoIcons.gear).first);
+    await tester.pumpAndSettle();
+    expect(find.byType(SettingsScreen), findsOneWidget);
+    expect(find.text('Report bug'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 }

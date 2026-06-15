@@ -7,7 +7,6 @@ import 'screens/buildings/building_detail_screen.dart';
 import 'screens/faction_laws/faction_law_detail_screen.dart';
 import 'screens/heroes/hero_detail_screen.dart';
 import 'screens/map_objects/map_object_detail_screen.dart';
-import 'screens/settings/settings_screen.dart';
 import 'screens/skills/skill_detail_screen.dart';
 import 'screens/spells/spell_detail_screen.dart';
 import 'screens/subclasses/subclass_detail_screen.dart';
@@ -17,17 +16,14 @@ import 'search/search_state.dart';
 /// Port of the AppRoute enum + destination(for:) switch in App.swift,
 /// expressed as plain CupertinoPageRoute pushes.
 ///
-/// Tries [Navigator.of] first; falls back to the root navigator key stored
-/// on [SearchState] (needed when pushing from the persistent search overlay
-/// whose context is above the app's Navigator).
+/// Tries [Navigator.of] first; falls back to the active tab's navigator
+/// resolved via [SearchState.tabs] (needed when pushing from the persistent
+/// search overlay whose context is above the tab navigators).
 void _push(BuildContext context, Widget screen) {
   final nav = Navigator.maybeOf(context) ??
-      SearchScope.of(context).navigatorKey?.currentState;
+      SearchScope.of(context).tabs?.activeNavigator;
   nav?.push(CupertinoPageRoute<void>(builder: (context) => screen));
 }
-
-void pushSettings(BuildContext context) =>
-    _push(context, const SettingsScreen());
 
 void pushUnitDetail(BuildContext context, String unitID) =>
     _push(context, UnitDetailScreen(unitID: unitID));

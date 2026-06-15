@@ -79,7 +79,7 @@ class _HomeScreenState extends State<HomeScreen> {
     return AppScaffold(
       title: 'Olden Era Wiki',
       child: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
+        padding: EdgeInsets.fromLTRB(16, 20, 16, context.scrollBottomInset(extra: 20)),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [

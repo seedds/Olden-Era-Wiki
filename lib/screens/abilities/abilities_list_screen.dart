@@ -36,7 +36,7 @@ class _AbilitiesListScreenState extends State<AbilitiesListScreen> {
       title: 'Abilities',
       searchPriority: SearchEntityType.abilities,
       child: ListView.builder(
-        padding: const EdgeInsets.fromLTRB(12, 8, 12, 24),
+        padding: EdgeInsets.fromLTRB(12, 8, 12, context.scrollBottomInset(extra: 24)),
         itemCount: _abilities.length,
         itemBuilder: (context, index) => Padding(
           padding: const EdgeInsets.only(bottom: 2),

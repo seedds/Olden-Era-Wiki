@@ -5,11 +5,20 @@ import '../search/search_results_view.dart';
 import '../search/search_state.dart';
 import '../theme/app_theme.dart';
 import 'nav_bar_state.dart';
+import 'tab_nav_state.dart';
 
-/// [RouteObserver] used by [AppScaffold] to detect when a screen becomes
-/// visible again after a pop, so it can restore its [searchPriority].
-final RouteObserver<ModalRoute<void>> appScaffoldRouteObserver =
-    RouteObserver<ModalRoute<void>>();
+/// Bottom inset every scrollable screen body should add to its own content
+/// padding so its last item rests clear of the persistent glass search bar
+/// (while still scrolling *under* it mid-scroll — the liquid glass effect).
+///
+/// The shell already encodes the bar's footprint plus the device safe-area
+/// inset into [MediaQuery]'s bottom padding, so this is the single place that
+/// knows how to clear the bar. Pass [extra] for the screen's own desired
+/// breathing room (e.g. 24 for lists, 32 for detail pages).
+extension AppScaffoldScrollInset on BuildContext {
+  double scrollBottomInset({double extra = 0}) =>
+      MediaQuery.paddingOf(this).bottom + extra;
+}
 
 /// Every screen gets the nav bar with Home + Settings buttons.
 /// The search bar is now rendered persistently at the bottom of the screen
@@ -42,13 +51,45 @@ class _AppScaffoldState extends State<AppScaffold> with RouteAware {
   /// the new route's widgets build, so this reads the correct value.
   int? _depth;
 
+  /// The per-tab [RouteObserver] this screen subscribed to. Stored so the
+  /// exact same instance is used to unsubscribe (each tab navigator has its
+  /// own observer; a NavigatorObserver can't be shared across navigators).
+  RouteObserver<ModalRoute<void>>? _routeObserver;
+
+  /// The tab state this screen is listening to, so the active screen of the
+  /// newly-selected tab re-publishes its nav bar (and overlay) on tab switch.
+  TabNavState? _tabs;
+
+  /// Which tab this screen lives in, resolved from its owning navigator. Used
+  /// to read the per-tab navigation depth / restore point from [SearchState].
+  AppTab? _tab;
+
+  void _onTabChanged() {
+    _updateSearchPriority();
+    _publishNavBar();
+  }
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    _depth ??= SearchScope.of(context).depth;
     final route = ModalRoute.of(context);
-    if (route != null) {
-      appScaffoldRouteObserver.subscribe(this, route);
+    final tabs = TabNavScope.maybeOf(context);
+    if (tabs != _tabs) {
+      _tabs?.removeListener(_onTabChanged);
+      _tabs = tabs;
+      _tabs?.addListener(_onTabChanged);
+    }
+    _tab ??= tabs?.tabForNavigator(Navigator.of(context));
+    // Capture this screen's navigation depth within its own tab once. The
+    // tab's SearchNavigatorObserver increments depth synchronously during
+    // Navigator.push, before the new route's widgets build, so this reads the
+    // correct value.
+    _depth ??= _tab != null ? SearchScope.of(context).depthFor(_tab!) : 0;
+    final observer = tabs?.routeObserverForNavigator(Navigator.of(context));
+    if (route != null && observer != null && observer != _routeObserver) {
+      _routeObserver?.unsubscribe(this);
+      _routeObserver = observer;
+      observer.subscribe(this, route);
     }
     _updateSearchPriority();
     _publishNavBar();
@@ -68,7 +109,8 @@ class _AppScaffoldState extends State<AppScaffold> with RouteAware {
 
   @override
   void dispose() {
-    appScaffoldRouteObserver.unsubscribe(this);
+    _routeObserver?.unsubscribe(this);
+    _tabs?.removeListener(_onTabChanged);
     super.dispose();
   }
 
@@ -87,13 +129,19 @@ class _AppScaffoldState extends State<AppScaffold> with RouteAware {
   }
 
   /// Publishes this screen's title/trailing/canPop to the persistent nav bar.
-  /// Only the currently-visible (current) route should drive the bar.
+  /// Only the current route of the *active* tab should drive the bar — both
+  /// tab navigators stay mounted in the shell's IndexedStack, so a screen
+  /// that is current within an inactive tab must not publish.
   void _publishNavBar() {
     // Defer to post-frame to avoid mutating shared state during build.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       final route = ModalRoute.of(context);
       if (route == null || !route.isCurrent) return;
+      final tabs = TabNavScope.maybeOf(context);
+      if (tabs != null && Navigator.of(context) != tabs.activeNavigator) {
+        return;
+      }
       // No-op when there's no persistent nav bar (e.g. isolated tests).
       NavBarScope.maybeNotifierOf(context)?.publish(
         title: widget.title,
@@ -109,9 +157,18 @@ class _AppScaffoldState extends State<AppScaffold> with RouteAware {
   /// covered, so it's already visible underneath during the pop transition.
   bool _showsOverlay(SearchState search) {
     if (search.trimmedText.isEmpty) return false;
+    // Only the active tab's screens may paint the overlay. With both tab
+    // navigators kept alive in the shell's IndexedStack, screens at the same
+    // depth in the inactive tab would otherwise also match the restore check.
+    final tabs = TabNavScope.maybeOf(context);
+    if (tabs != null && Navigator.of(context) != tabs.activeNavigator) {
+      return false;
+    }
     final route = ModalRoute.of(context);
+    final restoreDepth =
+        _tab != null ? search.restoreDepthFor(_tab!) : null;
     return (search.isOverlayPresented && (route?.isCurrent ?? true)) ||
-        search.restoreDepth == _depth;
+        restoreDepth == _depth;
   }
 
   void _updateSearchPriority() {
@@ -152,15 +209,11 @@ class _AppScaffoldState extends State<AppScaffold> with RouteAware {
               child: Stack(
                 fit: StackFit.expand,
                 children: [
-                  // Reserve space for the persistent search bar pinned at the
-                  // bottom of the shell so screen content isn't hidden behind
-                  // it. The shell encodes the bar height in padding.bottom.
-                  Padding(
-                    padding: EdgeInsets.only(
-                      bottom: MediaQuery.paddingOf(context).bottom,
-                    ),
-                    child: widget.child,
-                  ),
+                  // The body fills the full height and scrolls *under* the
+                  // translucent glass search bar (the liquid glass effect).
+                  // Each scrollable adds [BuildContext.scrollBottomInset] to its
+                  // own bottom padding so its last item rests clear of the bar.
+                  widget.child,
                   AnimatedSwitcher(
                     duration: const Duration(milliseconds: 180),
                     child: _showsOverlay(searchState)
@@ -178,14 +231,4 @@ class _AppScaffoldState extends State<AppScaffold> with RouteAware {
       },
     );
   }
-}
-
-/// Clears search state and pops to the home screen (port of goHome()).
-/// Uses the root navigator key fallback so it works from the persistent
-/// nav bar context (which sits above the app's Navigator).
-void goHome(BuildContext context) {
-  final search = SearchScope.of(context);
-  search.clear();
-  final nav = Navigator.maybeOf(context) ?? search.navigatorKey?.currentState;
-  nav?.popUntil((route) => route.isFirst);
 }

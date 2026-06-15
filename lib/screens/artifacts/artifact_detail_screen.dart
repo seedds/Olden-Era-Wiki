@@ -54,7 +54,7 @@ class _ArtifactDetailScreenState extends State<ArtifactDetailScreen> {
       title: artifact?.name ?? 'Artifact',
       searchPriority: SearchEntityType.artifacts,
       child: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(16, 0, 16, 32),
+        padding: EdgeInsets.fromLTRB(16, 0, 16, context.scrollBottomInset(extra: 32)),
         child: _isLoading
             ? const DetailLoadingIndicator()
             : artifact == null

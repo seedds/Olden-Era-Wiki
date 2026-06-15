@@ -3,6 +3,7 @@ import 'package:flutter/cupertino.dart';
 import '../data/models/search.dart';
 import '../routes.dart';
 import '../theme/app_theme.dart';
+import '../widgets/app_scaffold.dart';
 import '../widgets/faction_label.dart';
 import '../widgets/local_image.dart';
 import 'search_state.dart';
@@ -30,7 +31,7 @@ class SearchOverlay extends StatelessWidget {
           16,
           16,
           16,
-          16 + MediaQuery.paddingOf(context).bottom,
+          context.scrollBottomInset(extra: 16),
         ),
         child: results.isEmpty
             ? const SizedBox.shrink()

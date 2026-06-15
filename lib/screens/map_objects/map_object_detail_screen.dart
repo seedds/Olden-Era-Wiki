@@ -45,7 +45,7 @@ class _MapObjectDetailScreenState extends State<MapObjectDetailScreen> {
       title: object?.name ?? 'Object',
       searchPriority: SearchEntityType.mapObjects,
       child: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(16, 0, 16, 32),
+        padding: EdgeInsets.fromLTRB(16, 0, 16, context.scrollBottomInset(extra: 32)),
         child: _isLoading
             ? const DetailLoadingIndicator()
             : object == null
