@@ -1,7 +1,7 @@
 name: olden_era_wiki
 description: "Unofficial wiki companion for Heroes of Might and Magic: Olden Era."
 publish_to: "none"
-version: 1.0.6+202606151404
+version: 1.0.7+4
 
 environment:
   sdk: ^3.5.0

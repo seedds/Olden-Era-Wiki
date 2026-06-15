@@ -10,7 +10,22 @@ BUNDLE_ID="com.wiki.oldenera"
 OLD_BUNDLE_ID="com.oldenera.oldenEraWiki"
 DEVELOPER_DIR="${DEVELOPER_DIR:-/Applications/Xcode.app/Contents/Developer}"
 APP_VERSION="${1:-}"
-BUILD_NUMBER="${BUILD_NUMBER:-$(date +%Y%m%d%H%M)}"
+# Auto-incrementing integer build number. Unless an explicit BUILD_NUMBER is
+# provided, read the current "+N" build component from pubspec.yaml and bump it
+# by one (1, 2, 3, ...). A missing or non-integer build (e.g. a legacy
+# timestamp) resets the counter to 1. The resolved value is written back to
+# pubspec.yaml later in this script, so it carries forward across runs.
+if [ -z "${BUILD_NUMBER:-}" ]; then
+  CURRENT_BUILD="$(grep -Eo '^version: [0-9]+\.[0-9]+\.[0-9]+\+[0-9]+' "$PUBSPEC_PATH" | head -n 1 | grep -Eo '[0-9]+$' || true)"
+  # Only treat a small integer as a valid counter. A legacy timestamp build
+  # (e.g. 202606151404) exceeds Android's 32-bit versionCode limit, so reset
+  # the counter to 1 instead of continuing to grow it.
+  if [ -n "$CURRENT_BUILD" ] && [ "$CURRENT_BUILD" -lt 1000000 ]; then
+    BUILD_NUMBER="$((CURRENT_BUILD + 1))"
+  else
+    BUILD_NUMBER="1"
+  fi
+fi
 TEAM_ID="${TEAM_ID:-9LK4YZ82JR}"
 # App Store Connect API key for the upload step. The .p8 file lives in a
 # standard altool location (e.g. ~/private_keys/AuthKey_<KEYID>.p8) and is
