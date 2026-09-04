@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:olden_era_wiki/data/models/unit.dart';
+import 'package:olden_era_wiki/data/queries/units_queries.dart';
 import 'package:olden_era_wiki/screens/units/units_list_screen.dart';
 
 UnitListItem unit(String id, {String name = '', int? tier, String? faction}) =>

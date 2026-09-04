@@ -2,6 +2,23 @@ import '../database.dart';
 import '../models/hero.dart';
 import '../models/unit.dart';
 
+/// Strips upgrade suffixes to derive the base unit id.
+/// Port of WikiDatabase.baseUnitID(for:).
+String baseUnitID(String id) {
+  if (id.endsWith('_upg_alt')) return id.substring(0, id.length - 8);
+  if (id.endsWith('_upg')) return id.substring(0, id.length - 4);
+  return id;
+}
+
+/// Given an upgrade variant id, returns the sibling variant id by toggling the
+/// suffix ("_upg" <-> "_upg_alt"). Returns null for non-variant (base) ids.
+/// Port of WikiDatabase.siblingVariantID(for:).
+String? siblingVariantID(String id) {
+  if (id.endsWith('_upg_alt')) return '${id.substring(0, id.length - 8)}_upg';
+  if (id.endsWith('_upg')) return '${id}_alt';
+  return null;
+}
+
 /// Port of the unit-related queries in Database.swift.
 extension UnitsQueries on WikiDatabase {
   List<UnitListItem> listUnits({String? search, String? factionID}) {
@@ -91,25 +108,56 @@ extension UnitsQueries on WikiDatabase {
     );
   }
 
+  // A base unit forks into two parallel upgrades ("_upg" = path A,
+  // "_upg_alt" = path B), rather than upgrading in a linear chain. The raw
+  // `upgrade_sid` game data encodes the chain (base -> _upg -> _upg_alt), so
+  // relations are derived from the id suffix convention instead: base upgrades
+  // to both variants, each variant upgrades from the base.
   UnitUpgradeRelations fetchUnitUpgradeRelations(String unitID) {
-    final upgradeTo = db.select('''
-        SELECT u.id, u.name, u.tier, u.faction_id, u.icon_path
-        FROM units u
-        JOIN units base ON base.upgrade_sid = u.id
-        WHERE base.id = ?
-        ORDER BY u.name COLLATE NOCASE, u.id
-        ''', [unitID]);
+    final baseID = baseUnitID(unitID);
+    final isVariant = baseID != unitID;
 
-    final upgradeFrom = db.select('''
+    if (isVariant) {
+      // Upgrade variant: no further upgrade; it upgrades FROM its base unit,
+      // and links to its sibling variant as the alternative upgrade.
+      final upgradeFrom = db.select('''
+          SELECT id, name, tier, faction_id, icon_path
+          FROM units
+          WHERE id = ?
+          ''', [baseID]);
+      final siblingID = siblingVariantID(unitID);
+      final alternativeUpgrade = <UnitListItem>[];
+      if (siblingID != null) {
+        final rows = db.select('''
+          SELECT id, name, tier, faction_id, icon_path
+          FROM units
+          WHERE id = ?
+          ''', [siblingID]);
+        for (final row in rows) {
+          alternativeUpgrade.add(UnitListItem.fromRow(row));
+        }
+      }
+      return UnitUpgradeRelations(
+        upgradeTo: const [],
+        upgradeFrom: [for (final row in upgradeFrom) UnitListItem.fromRow(row)],
+        alternativeUpgrade: alternativeUpgrade,
+      );
+    }
+
+    // Base unit: upgrades TO both variants (whichever exist), path A ("_upg")
+    // first.
+    final upgVariantID = '${baseID}_upg';
+    final altVariantID = '${baseID}_upg_alt';
+    final upgradeTo = db.select('''
         SELECT id, name, tier, faction_id, icon_path
         FROM units
-        WHERE upgrade_sid = ?
-        ORDER BY name COLLATE NOCASE, id
-        ''', [unitID]);
-
+        WHERE id IN (?, ?)
+        ORDER BY (id = ?) DESC
+        ''', [upgVariantID, altVariantID, upgVariantID]);
     return UnitUpgradeRelations(
       upgradeTo: [for (final row in upgradeTo) UnitListItem.fromRow(row)],
-      upgradeFrom: [for (final row in upgradeFrom) UnitListItem.fromRow(row)],
+      upgradeFrom: const [],
+      alternativeUpgrade: const [],
     );
   }
 
@@ -126,10 +174,11 @@ extension UnitsQueries on WikiDatabase {
     return [for (final row in rows) HeroListItem.fromRow(row)];
   }
 
-  String? fetchUpgradeCost(String upgradeSid) {
+  /// Port of WikiDatabase.fetchUnitCostJSON(unitID:).
+  String? fetchUnitCostJSON(String unitID) {
     final rows = db.select(
       'SELECT unit_cost_json FROM units WHERE id = ?',
-      [upgradeSid],
+      [unitID],
     );
     if (rows.isEmpty) return null;
     return rows.first['unit_cost_json'] as String?;

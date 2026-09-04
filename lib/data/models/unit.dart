@@ -175,8 +175,10 @@ class UnitUpgradeRelations {
   const UnitUpgradeRelations({
     required this.upgradeTo,
     required this.upgradeFrom,
+    required this.alternativeUpgrade,
   });
 
   final List<UnitListItem> upgradeTo;
   final List<UnitListItem> upgradeFrom;
+  final List<UnitListItem> alternativeUpgrade;
 }

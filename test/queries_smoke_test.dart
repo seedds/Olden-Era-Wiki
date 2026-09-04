@@ -45,7 +45,13 @@ void main() {
     expect(crossbowman!.upgradeSid, 'crossbowman_upg');
     final relations = db.fetchUnitUpgradeRelations('crossbowman');
     expect(relations.upgradeTo.map((u) => u.id), contains('crossbowman_upg'));
-    expect(db.fetchUpgradeCost('crossbowman_upg'), isNotNull);
+    expect(db.fetchUnitCostJSON('crossbowman_upg'), isNotNull);
+
+    // Base unit forks to both upgrade variants; each variant links back to the
+    // base and to its sibling as the alternative upgrade.
+    final variantRelations = db.fetchUnitUpgradeRelations('crossbowman_upg');
+    expect(variantRelations.upgradeFrom.map((u) => u.id),
+        contains('crossbowman'));
   });
 
   test('abilities: grouped list and detail with variants', () {

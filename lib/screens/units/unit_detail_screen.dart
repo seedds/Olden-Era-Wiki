@@ -28,9 +28,10 @@ class UnitDetailScreen extends StatefulWidget {
 class _UnitDetailScreenState extends State<UnitDetailScreen> {
   UnitDetail? _unit;
   List<HeroListItem> _heroes = [];
-  String? _upgradeCostJSON;
+  String? _baseCostJSON;
   List<UnitListItem> _upgradeTo = [];
   List<UnitListItem> _upgradeFrom = [];
+  List<UnitListItem> _alternativeUpgrade = [];
   bool _isLoading = true;
 
   @override
@@ -49,9 +50,11 @@ class _UnitDetailScreenState extends State<UnitDetailScreen> {
         final upgradeRelations = db.fetchUnitUpgradeRelations(widget.unitID);
         _upgradeTo = upgradeRelations.upgradeTo;
         _upgradeFrom = upgradeRelations.upgradeFrom;
-        final upgradeSid = fetched.upgradeSid;
-        if (upgradeSid != null) {
-          _upgradeCostJSON = db.fetchUpgradeCost(upgradeSid);
+        _alternativeUpgrade = upgradeRelations.alternativeUpgrade;
+        // An upgrade variant shows its cost delta vs. its base unit.
+        final baseID = baseUnitID(widget.unitID);
+        if (baseID != widget.unitID) {
+          _baseCostJSON = db.fetchUnitCostJSON(baseID);
         }
       }
     } catch (error) {
@@ -77,7 +80,7 @@ class _UnitDetailScreenState extends State<UnitDetailScreen> {
                       _HeaderSection(unit: unit),
                       const SizedBox(height: 20),
                       _StatsSection(
-                          unit: unit, upgradeCostJSON: _upgradeCostJSON),
+                          unit: unit, baseCostJSON: _baseCostJSON),
                       if (_upgradeTo.isNotEmpty) ...[
                         const SizedBox(height: 20),
                         _UnitLinksSection(
@@ -87,6 +90,12 @@ class _UnitDetailScreenState extends State<UnitDetailScreen> {
                         const SizedBox(height: 20),
                         _UnitLinksSection(
                             title: 'Upgrade From', units: _upgradeFrom),
+                      ],
+                      if (_alternativeUpgrade.isNotEmpty) ...[
+                        const SizedBox(height: 20),
+                        _UnitLinksSection(
+                            title: 'Alternative Upgrade',
+                            units: _alternativeUpgrade),
                       ],
                       if (unit.abilities.isNotEmpty) ...[
                         const SizedBox(height: 20),
@@ -194,10 +203,10 @@ class _HeaderSection extends StatelessWidget {
 }
 
 class _StatsSection extends StatelessWidget {
-  const _StatsSection({required this.unit, required this.upgradeCostJSON});
+  const _StatsSection({required this.unit, required this.baseCostJSON});
 
   final UnitDetail unit;
-  final String? upgradeCostJSON;
+  final String? baseCostJSON;
 
   String? get _moveTypeText {
     final moveType = unit.moveType;
@@ -212,17 +221,13 @@ class _StatsSection extends StatelessWidget {
 
   UnitCost? get _parsedCost => UnitCost.tryParse(unit.costJSON);
 
-  UnitCost? get _parsedUpgradeCost => UnitCost.tryParse(upgradeCostJSON);
+  UnitCost? get _parsedBaseCost => UnitCost.tryParse(baseCostJSON);
 
-  bool get _isBaseUnit {
-    final upgradeSid = unit.upgradeSid;
-    if (upgradeSid == null || upgradeSid.isEmpty) return false;
-    return !unit.id.contains('_upg');
-  }
+  bool get _isUpgradeUnit => unit.id.contains('_upg');
 
   List<UnitCostItem> get _upgradeCostDeltaItems {
-    final baseItems = _parsedCost?.costResArray;
-    final upgradedItems = _parsedUpgradeCost?.costResArray;
+    final upgradedItems = _parsedCost?.costResArray;
+    final baseItems = _parsedBaseCost?.costResArray;
     if (baseItems == null || upgradedItems == null) return const [];
 
     final baseCostsByName = {
@@ -324,7 +329,7 @@ class _StatsSection extends StatelessWidget {
                 ),
               if (cost != null)
                 CostSummaryRow(label: 'Cost', items: cost.costResArray),
-              if (_isBaseUnit && upgradeDeltas.isNotEmpty)
+              if (_isUpgradeUnit && upgradeDeltas.isNotEmpty)
                 CostSummaryRow(label: 'Upgrade Cost', items: upgradeDeltas),
             ],
           ),

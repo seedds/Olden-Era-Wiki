@@ -96,12 +96,6 @@ int compareUnits(UnitListItem lhs, UnitListItem rhs) {
   return lhs.id.compareTo(rhs.id);
 }
 
-String baseUnitID(String id) {
-  if (id.endsWith('_upg_alt')) return id.substring(0, id.length - 8);
-  if (id.endsWith('_upg')) return id.substring(0, id.length - 4);
-  return id;
-}
-
 int unitVariantRank(String id) {
   if (id.endsWith('_upg_alt')) return 2;
   if (id.endsWith('_upg')) return 1;

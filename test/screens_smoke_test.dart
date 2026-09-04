@@ -302,13 +302,11 @@ void main() {
     await tester.tap(find.text('Font Size'));
     await tester.pumpAndSettle();
     expect(find.text('Font Size'), findsWidgets);
-    expect(find.text('Report bug'), findsNothing);
 
     // Re-tapping the active Settings tab pops back to the Settings root.
     await tester.tap(find.byIcon(CupertinoIcons.gear).first);
     await tester.pumpAndSettle();
     expect(find.byType(SettingsScreen), findsOneWidget);
-    expect(find.text('Report bug'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 }

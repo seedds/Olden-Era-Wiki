@@ -1,5 +1,4 @@
 import 'package:flutter/cupertino.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../../data/database.dart';
 import '../../settings/app_settings.dart';
@@ -51,12 +50,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   CupertinoPageRoute<void>(
                       builder: (context) => const FontSizeScreen()),
                 ),
-              ),
-              CupertinoListTile(
-                leading: const Icon(CupertinoIcons.ant, color: AppTheme.accent),
-                title: Text('Report bug',
-                    style: TextStyle(color: AppTheme.textPrimary(context))),
-                onTap: () => launchUrl(Uri.parse('mailto:seedds@gmail.com')),
               ),
               if (_gameVersion != null)
                 CupertinoListTile(
